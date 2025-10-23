@@ -1,16 +1,63 @@
-# React + Vite
+# Drawing App: Step-by-Step Notes
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+These are raw, step-by-step notes to build the drawing app from the ground up. Follow each section in order to build the app point by point.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 1. Setting Up the Drawing Board
 
-## React Compiler
+- We use the HTML canvas api for drawing.
+- See the sample code to understand how we can draw various shapes.
+- Example: draw a rectangle and a line on the canvas using `ctx.rect`, `ctx.lineTo`, etc.
+- Right now we give static coordinates, soon we will change that to get real coords from user mouse movements.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Basic Steps
 
-## Expanding the ESLint configuration
+1. Get the canvas element and its context.
+2. Use canvas context methods to draw shapes (rectangles, lines, etc).
+3. Draw the shapes on the canvas using context methods like `strokeRect`, `beginPath`, `moveTo`, `lineTo`, and `stroke`.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+#### Code Example
+
+```jsx
+import { useLayoutEffect } from "react";
+
+function App() {
+  useLayoutEffect(() => {
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    // Draw a rectangle
+    ctx.strokeRect(10, 10, 150, 150);
+    // Draw a line
+    ctx.beginPath();
+    ctx.moveTo(10, 10);
+    ctx.lineTo(110, 110);
+    ctx.stroke();
+  }, []);
+
+  return (
+    <canvas
+      id="canvas"
+      width={window.innerWidth}
+      height={window.innerHeight}
+    ></canvas>
+  );
+}
+
+export default App;
+```
+
+---
+
+## 2. Getting User Mouse Moves
+
+Drawing begins when user clicks with their mouse and drags it, for that we have some listeners attached to canvas.
+
+- It is important to clear the canvas after each render, else it keeps redrawing the elements.
+- We have a createElement function that will take the coords from user mouse movements, an object that has the coords and draw function for that element type.
+
+To get coords we use the clientX and clientY fields from the event.
+
+- On mouseDown, the starting position is clientX and clientY and same is the ending position so we create an element using that.
+- On mouseMove, we get the last element, we take its starting position and update the ending position based on user's mouse movements.
+- We create a new element based on the updated coords and overwrite the last element.
