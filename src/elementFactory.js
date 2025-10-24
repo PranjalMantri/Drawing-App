@@ -4,8 +4,6 @@ const generator = rough.generator();
 
 export function createElement(x1, y1, x2, y2, type, id) {
   const elementId = id ?? Date.now();
-  console.log(type);
-
   switch (type) {
     case "line":
       return {
@@ -86,6 +84,9 @@ export function createElement(x1, y1, x2, y2, type, id) {
         },
         roughElement: generator.circle(centerX, centerY, diameter),
       };
+
+    case "pencil":
+      return { elementId, type, points: [{ x: x1, y: y1 }] };
     default:
       throw new Error("Unknown element type: " + type);
   }
