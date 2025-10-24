@@ -97,3 +97,33 @@ Before implementing selection functionality we made a couple of changes:
 - The starting position changes based on mouse move.
 - When moving, we get the user's click position.
 - If the user clicks in the middle of the rectangle, then there is some offset between the starting position and user's clicked position. We calculate this offset and use it in updating, else moving the element feels too snappy.
+
+## 4. Resizing Elements
+
+Resizing elements involves several steps to ensure smooth and intuitive user interaction:
+
+1. **Consistent Coordinates:**
+
+- No matter how the shape is drawn, `x1`, `y1` are always the smaller values and represent the starting point.
+- This keeps the shape's coordinates consistent.
+
+2. **New Shapes:**
+
+- Added support for diamond and circle shapes.
+
+3. **Resizing Logic:**
+
+- Resizing is similar to selection, but only works on the edges of an element.
+- If an element is selected by its edge, resizing is allowed.
+- The `isWithinElement` function is modified and renamed to `positionWithinElement` to get the exact position of the user's click.
+- Getting the exact position (e.g., topLeft, topRight, etc.) is crucial for resizing, as it helps adjust the coordinates of the resized element.
+
+4. **Coordinate Adjustment:**
+
+- The `resizeCoordinates` function returns the updated coordinates for the resized element.
+- The `adjustElementCoordinates` function ensures that `x1`, `y1` are always the smaller values, keeping them as the starting point.
+
+5. **Cursor Feedback:**
+
+- Based on the position of the user's mouse, the cursor changes for selecting or resizing.
+- This is handled by the `getCursorForPosition` function.

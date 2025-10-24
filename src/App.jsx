@@ -131,7 +131,7 @@ function positionWithinElement(x, y, element) {
       if (endPoint) return endPoint;
 
       const distance = pointToLineSegmentDistance(x, y, x1, y1, x2, y2);
-      return distance < tolerance ? "onLine" : null;
+      return distance < tolerance ? "inside" : null;
     case "rectangle":
       const topLeft = nearPoint(x, y, x1, y1, "tl");
       const topRight = nearPoint(x, y, x2, y1, "tr");
@@ -160,15 +160,6 @@ function positionWithinElement(x, y, element) {
 
       const value =
         Math.abs(x - centerX) / halfWidth + Math.abs(y - centerY) / halfHeight;
-
-      if (Math.abs(value - 1) < borderTolerance) {
-        // On an edge (but not a vertex)
-        if (x > centerX && y < centerY) return "tr";
-        if (x > centerX && y > centerY) return "br";
-        if (x < centerX && y > centerY) return "bl";
-        if (x < centerX && y < centerY) return "tl";
-        return "onBorder"; // Fallback
-      }
 
       if (value < 1 - borderTolerance) {
         return "inside";
@@ -205,7 +196,6 @@ function positionWithinElement(x, y, element) {
         return "inside";
       }
 
-      // Extra precision — near the main axis points of the circle
       const pointTolerance = radius;
       const points = [
         { name: "top", x: cX, y: cY - pointTolerance },
@@ -301,11 +291,76 @@ function getCursorForPosition(position) {
       return "ew-resize";
 
     case "inside":
-    case "onLine":
       return "grab";
 
     default:
       return "auto";
+  }
+}
+
+function resizedCoordinates(clientX, clientY, position, coordinates, type) {
+  const { x1, y1, x2, y2 } = coordinates;
+
+  switch (type) {
+    case "line":
+    case "rectangle":
+      switch (position) {
+        case "tl":
+        case "start":
+          return { x1: clientX, y1: clientY, x2, y2 };
+        case "tr":
+          return { x1, y1: clientY, x2: clientX, y2 };
+        case "bl":
+          return { x1: clientX, y1, x2, y2: clientY };
+        case "br":
+        case "end":
+          return { x1, y1, x2: clientX, y2: clientY };
+        default:
+          console.log("invalid position");
+          return null;
+      }
+
+    case "circle":
+      switch (position) {
+        case "tl":
+          return { x1: clientX, y1: clientY, x2, y2 };
+        case "tr":
+          return { x1, y1: clientY, x2: clientX, y2 };
+        case "bl":
+          return { x1: clientX, y1, x2, y2: clientY };
+        case "br":
+          return { x1, y1, x2: clientX, y2: clientY };
+        case "top":
+          return { x1, y1: clientY, x2, y2: y1 + y2 - clientY };
+        case "bottom":
+          return { x1, y1: y1 + y2 - clientY, x2, y2: clientY };
+        case "left":
+          return { x1: clientX, y1, x2, y2 };
+        case "right":
+          return { x1, y1, x2: clientX, y2 };
+        default:
+          return null;
+      }
+      return;
+
+    case "diamond":
+      switch (position) {
+        case "top":
+          return { x1, y1: clientY, x2, y2: y1 + y2 - clientY };
+        case "bottom":
+          return { x1, y1: y1 + y2 - clientY, x2, y2: clientY };
+        case "left":
+          return { x1: clientX, y1, x2: x1 + x2 - clientX, y2 };
+        case "right":
+          return { x1: x1 + x2 - clientX, y1, x2: clientX, y2 };
+        default:
+          console.log("invalid position");
+          return null;
+      }
+
+    default:
+      console.log("unknown type", type);
+      return null;
   }
 }
 
@@ -358,12 +413,17 @@ function App() {
       const offsetY = clientY - element.y1;
 
       setSelectedElement({ ...element, offsetX, offsetY });
-      setAction("moving");
+      if (element.position === "inside") {
+        setAction("moving");
+      } else {
+        setAction("resizing");
+      }
     } else {
       // we create an element at the initial mouse position
       const element = createElement(x, y, x, y, tool);
 
       setElements((prevElements) => [...prevElements, element]);
+      setSelectedElement(element);
       setAction("drawing");
     }
   };
@@ -416,15 +476,31 @@ function App() {
       const newY = clientY - offsetY;
 
       updateElement(id, newX, newY, newX + width, newY + height, type);
+    } else if (action === "resizing") {
+      const { elementId, type, position, ...coordinates } = selectedElement;
+      const { x1, y1, x2, y2 } = resizedCoordinates(
+        clientX,
+        clientY,
+        position,
+        coordinates,
+        type
+      );
+      updateElement(elementId, x1, y1, x2, y2, type);
     }
   };
 
   const handleMouseUp = () => {
-    if (action === "drawing") {
-      const lastIndex = elements.length - 1;
-      const { elementId, type } = elements[lastIndex];
+    if (!selectedElement) {
+      setAction("none");
+      return;
+    }
 
-      const { x1, y1, x2, y2 } = adjustElementCoordinates(elements[lastIndex]);
+    const { elementId, type } = selectedElement;
+
+    if (action === "drawing" || action === "resizing") {
+      const element = elements.find((el) => el.elementId === elementId);
+
+      const { x1, y1, x2, y2 } = adjustElementCoordinates(element);
       updateElement(elementId, x1, y1, x2, y2, type);
     }
 
