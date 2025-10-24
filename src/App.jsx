@@ -112,53 +112,146 @@ function pointToLineSegmentDistance(x, y, x1, y1, x2, y2) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-function isWithinElement(x, y, element) {
+function nearPoint(x, y, x1, y1, name) {
+  return Math.abs(x - x1) < 5 && Math.abs(y - y1) < 5 ? name : null;
+}
+
+function positionWithinElement(x, y, element) {
   const tolerance = 5;
+  const borderTolerance = 0.1;
 
   const { type, x1, y1, x2, y2 } = element;
 
   switch (type) {
     case "line":
+      const startPoint = nearPoint(x, y, x1, y1, "start");
+      if (startPoint) return startPoint;
+
+      const endPoint = nearPoint(x, y, x2, y2, "end");
+      if (endPoint) return endPoint;
+
       const distance = pointToLineSegmentDistance(x, y, x1, y1, x2, y2);
-      return distance < tolerance;
-
+      return distance < tolerance ? "onLine" : null;
     case "rectangle":
-      const minX = Math.min(x1, x2);
-      const minY = Math.min(y1, y2);
-      const maxX = Math.max(x1, x2);
-      const maxY = Math.max(y1, y2);
+      const topLeft = nearPoint(x, y, x1, y1, "tl");
+      const topRight = nearPoint(x, y, x2, y1, "tr");
+      const bottomLeft = nearPoint(x, y, x1, y2, "bl");
+      const bottomRight = nearPoint(x, y, x2, y2, "br");
+      const inside = x >= x1 && x <= x2 && y >= y1 && y <= y2 ? "inside" : null;
 
-      return x >= minX && x <= maxX && y >= minY && y <= maxY;
-
+      return topLeft || topRight || bottomLeft || bottomRight || inside;
     case "diamond":
       const centerX = (x1 + x2) / 2;
       const centerY = (y1 + y2) / 2;
+
+      const top = nearPoint(x, y, centerX, y1, "top");
+      if (top) return top;
+      const right = nearPoint(x, y, x2, centerY, "right");
+      if (right) return right;
+      const bottom = nearPoint(x, y, centerX, y2, "bottom");
+      if (bottom) return bottom;
+      const left = nearPoint(x, y, x1, centerY, "left");
+      if (left) return left;
+
       const halfWidth = Math.abs(x2 - x1) / 2;
       const halfHeight = Math.abs(y2 - y1) / 2;
 
+      if (halfWidth === 0 || halfHeight === 0) return null;
+
       const value =
         Math.abs(x - centerX) / halfWidth + Math.abs(y - centerY) / halfHeight;
-      return value <= 1;
+
+      if (Math.abs(value - 1) < borderTolerance) {
+        // On an edge (but not a vertex)
+        if (x > centerX && y < centerY) return "tr";
+        if (x > centerX && y > centerY) return "br";
+        if (x < centerX && y > centerY) return "bl";
+        if (x < centerX && y < centerY) return "tl";
+        return "onBorder"; // Fallback
+      }
+
+      if (value < 1 - borderTolerance) {
+        return "inside";
+      }
+
+      return null;
 
     case "circle":
       const cX = (x1 + x2) / 2;
       const cY = (y1 + y2) / 2;
-      const radius = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)) / 2;
 
-      const dist = Math.sqrt(Math.pow(x - cX, 2) + Math.pow(y - cY, 2));
-      return dist <= radius + tolerance;
+      const radius = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2) / 2;
+      const dist = Math.sqrt((x - cX) ** 2 + (y - cY) ** 2);
+
+      // Detect near the border
+      if (Math.abs(dist - radius) <= tolerance) {
+        const angle = Math.atan2(y - cY, x - cX);
+        const piOverEight = Math.PI / 8;
+
+        // Check for diagonal quadrants
+        if (angle > -piOverEight && angle <= piOverEight) return "right";
+        if (angle > piOverEight && angle <= 3 * piOverEight) return "br";
+        if (angle > 3 * piOverEight && angle <= 5 * piOverEight)
+          return "bottom";
+        if (angle > 5 * piOverEight && angle <= 7 * piOverEight) return "bl";
+        if (angle > 7 * piOverEight || angle <= -7 * piOverEight) return "left";
+        if (angle > -7 * piOverEight && angle <= -5 * piOverEight) return "tl";
+        if (angle > -5 * piOverEight && angle <= -3 * piOverEight) return "top";
+        if (angle > -3 * piOverEight && angle <= -piOverEight) return "tr";
+      }
+
+      // Check if inside the circle
+      if (dist < radius - tolerance) {
+        return "inside";
+      }
+
+      // Extra precision — near the main axis points of the circle
+      const pointTolerance = radius;
+      const points = [
+        { name: "top", x: cX, y: cY - pointTolerance },
+        { name: "bottom", x: cX, y: cY + pointTolerance },
+        { name: "left", x: cX - pointTolerance, y: cY },
+        { name: "right", x: cX + pointTolerance, y: cY },
+        {
+          name: "tl",
+          x: cX - pointTolerance / Math.SQRT2,
+          y: cY - pointTolerance / Math.SQRT2,
+        },
+        {
+          name: "tr",
+          x: cX + pointTolerance / Math.SQRT2,
+          y: cY - pointTolerance / Math.SQRT2,
+        },
+        {
+          name: "bl",
+          x: cX - pointTolerance / Math.SQRT2,
+          y: cY + pointTolerance / Math.SQRT2,
+        },
+        {
+          name: "br",
+          x: cX + pointTolerance / Math.SQRT2,
+          y: cY + pointTolerance / Math.SQRT2,
+        },
+      ];
+
+      for (const p of points) {
+        const near = nearPoint(x, y, p.x, p.y, p.name);
+        if (near) return near;
+      }
+
+      return null;
     default:
       return false;
   }
 }
 
 function getElementAtPosition(x, y, elements) {
-  return (
-    elements
-      .slice()
-      .reverse()
-      .find((element) => isWithinElement(x, y, element)) || null
-  );
+  return elements
+    .map((element) => ({
+      ...element,
+      position: positionWithinElement(x, y, element),
+    }))
+    .find((element) => element.position !== null);
 }
 
 function adjustElementCoordinates(element) {
@@ -180,6 +273,39 @@ function adjustElementCoordinates(element) {
       const maxY = Math.max(y1, y2);
 
       return { x1: minX, y1: minY, x2: maxX, y2: maxY };
+  }
+}
+
+function getCursorForPosition(position) {
+  switch (position) {
+    // Diagonal resize (Top-Left <=> Bottom-Right)
+    case "tl":
+    case "br":
+    case "start":
+    case "end":
+      return "nwse-resize";
+
+    // Diagonal resize (Top-Right <=> Bottom-Left)
+    case "tr":
+    case "bl":
+      return "nesw-resize";
+
+    // Vertical resize (Top <=> Bottom)
+    case "top":
+    case "bottom":
+      return "ns-resize";
+
+    // Horizontal resize (Left <=> Right)
+    case "left":
+    case "right":
+      return "ew-resize";
+
+    case "inside":
+    case "onLine":
+      return "grab";
+
+    default:
+      return "auto";
   }
 }
 
@@ -226,7 +352,6 @@ function App() {
 
     if (tool === "selection") {
       const element = getElementAtPosition(x, y, elements);
-
       if (!element) return;
 
       const offsetX = clientX - element.x1;
@@ -251,10 +376,16 @@ function App() {
     const x = clientX - rect.left;
     const y = clientY - rect.top;
 
+    if (action === "none") {
+      event.target.style.cursor = "default";
+    }
+
     if (tool === "selection") {
-      event.target.style.cursor = getElementAtPosition(x, y, elements)
-        ? "grab"
-        : "default";
+      const element = getElementAtPosition(x, y, elements);
+
+      if (element) {
+        event.target.style.cursor = getCursorForPosition(element.position);
+      }
     }
 
     if (action === "drawing") {
