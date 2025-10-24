@@ -54,6 +54,26 @@ function createElement(x1, y1, x2, y2, type, id) {
           ctx.stroke();
         },
       };
+
+    case "circle":
+      return {
+        elementId,
+        type,
+        x1,
+        y1,
+        x2,
+        y2,
+        draw: (ctx) => {
+          const centerX = (x1 + x2) / 2;
+          const centerY = (y1 + y2) / 2;
+          const radius =
+            Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)) / 2;
+
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+          ctx.stroke();
+        },
+      };
     default:
       throw new Error("Unknown element type: " + type);
   }
@@ -119,6 +139,14 @@ function isWithinElement(x, y, element) {
       const value =
         Math.abs(x - centerX) / halfWidth + Math.abs(y - centerY) / halfHeight;
       return value <= 1;
+
+    case "circle":
+      const cX = (x1 + x2) / 2;
+      const cY = (y1 + y2) / 2;
+      const radius = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)) / 2;
+
+      const dist = Math.sqrt(Math.pow(x - cX, 2) + Math.pow(y - cY, 2));
+      return dist <= radius + tolerance;
     default:
       return false;
   }
@@ -144,6 +172,7 @@ function adjustElementCoordinates(element) {
         return { x1: x2, y1: y2, x2: x1, y2: y1 };
       }
     case "rectangle":
+    case "circle":
     case "diamond":
       const minX = Math.min(x1, x2);
       const minY = Math.min(y1, y2);
@@ -299,6 +328,14 @@ function App() {
           onChange={() => setTool("diamond")}
         />
         <label htmlFor="diamond">Diamond</label>
+        <input
+          type="radio"
+          name="actionType"
+          value={"circle"}
+          checked={tool === "circle"}
+          onChange={() => setTool("circle")}
+        />
+        <label htmlFor="circle">Circle</label>
         <input
           type="radio"
           name="actionType"
