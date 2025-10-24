@@ -24,3 +24,5 @@ const useHistory = (initialState) => {
 
   return [history[index], setState, undo, redo];
 };
+
+export default useHistory;

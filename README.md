@@ -127,3 +127,20 @@ Resizing elements involves several steps to ensure smooth and intuitive user int
 
 - Based on the position of the user's mouse, the cursor changes for selecting or resizing.
 - This is handled by the `getCursorForPosition` function.
+
+## 5. Undo/Redo Functionality
+
+## 5. Undo/Redo Functionality
+
+## 5. Undo/Redo Functionality
+
+- For this functionality we need to maintain the history of the state of our entire canvas, for this we use the `useHistory` custom hook.
+- It stores the entire history of the canvas and also the index at which the current state of the canvas is.
+- It provides undo and redo functions that update this index.
+
+That's the main thing in the part, we just integrate this hook with our app, undo/redo works now.
+
+Also added keybinds:
+
+- **CTRL + Z** for Undo
+- **CTRL + Y** for Redo

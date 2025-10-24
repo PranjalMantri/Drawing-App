@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import { createElement } from "./elementFactory";
 import {
   adjustElementCoordinates,
@@ -6,10 +6,11 @@ import {
   getElementAtPosition,
   resizedCoordinates,
 } from "./elementUtils";
+import useHistory from "./hooks/useHistory";
 
 function App() {
   const [tool, setTool] = useState("line");
-  const [elements, setElements] = useState([]);
+  const [elements, setElements, undo, redo] = useHistory([]);
   const [selectedElement, setSelectedElement] = useState(null);
   const [action, setAction] = useState("none");
 
@@ -26,6 +27,21 @@ function App() {
     });
   }, [elements]);
 
+  useEffect(() => {
+    const undoRedoFunction = (event) => {
+      if (event.metaKey || event.ctrlKey) {
+        if (event.key.toLowerCase() === "z") {
+          undo();
+        } else if (event.key.toLowerCase() === "y") {
+          redo();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", undoRedoFunction);
+    return () => document.removeEventListener("keydown", undoRedoFunction);
+  }, [undo, redo]);
+
   const updateElement = (id, x1, y1, x2, y2, type) => {
     const updatedElement = createElement(x1, y1, x2, y2, type, id);
 
@@ -36,7 +52,7 @@ function App() {
 
     if (oldElementId !== -1) {
       elementsCopy[oldElementId] = updatedElement;
-      setElements(elementsCopy);
+      setElements(elementsCopy, true);
     }
   };
 
@@ -56,6 +72,8 @@ function App() {
       const offsetY = clientY - element.y1;
 
       setSelectedElement({ ...element, offsetX, offsetY });
+      setElements((prev) => prev);
+
       if (element.position === "inside") {
         setAction("moving");
       } else {
@@ -154,6 +172,10 @@ function App() {
   return (
     <div>
       <div>
+        <div style={{ position: "absolute", bottom: "0px", padding: "4px" }}>
+          <button onClick={undo}>Undo</button>
+          <button onClick={redo}>Redo</button>
+        </div>
         <input
           type="radio"
           name="actionType"
