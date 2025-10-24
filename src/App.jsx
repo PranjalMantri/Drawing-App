@@ -102,6 +102,27 @@ function getElementAtPosition(x, y, elements) {
   );
 }
 
+function adjustElementCoordinates(element) {
+  const { type, x1, y1, x2, y2 } = element;
+
+  switch (type) {
+    case "line":
+      if (x1 < x2 || (x1 == x2 && y1 < y2)) {
+        return { x1, y1, x2, y2 };
+      } else {
+        return { x1: x2, y1: y2, x2: x1, y2: y1 };
+      }
+
+    case "rectangle":
+      const minX = Math.min(x1, x2);
+      const minY = Math.min(y1, y2);
+      const maxX = Math.max(x1, x2);
+      const maxY = Math.max(y1, y2);
+
+      return { x1: minX, y1: minY, x2: maxX, y2: maxY };
+  }
+}
+
 function App() {
   const [tool, setTool] = useState("line");
   const [elements, setElements] = useState([]);
@@ -208,6 +229,14 @@ function App() {
   };
 
   const handleMouseUp = () => {
+    if (action === "drawing") {
+      const lastIndex = elements.length - 1;
+      const { elementId, type } = elements[lastIndex];
+
+      const { x1, y1, x2, y2 } = adjustElementCoordinates(elements[lastIndex]);
+      updateElement(elementId, x1, y1, x2, y2, type);
+    }
+
     setAction("none");
     setSelectedElement(null);
   };
