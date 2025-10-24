@@ -130,10 +130,6 @@ Resizing elements involves several steps to ensure smooth and intuitive user int
 
 ## 5. Undo/Redo Functionality
 
-## 5. Undo/Redo Functionality
-
-## 5. Undo/Redo Functionality
-
 - For this functionality we need to maintain the history of the state of our entire canvas, for this we use the `useHistory` custom hook.
 - It stores the entire history of the canvas and also the index at which the current state of the canvas is.
 - It provides undo and redo functions that update this index.
@@ -144,3 +140,19 @@ Also added keybinds:
 
 - **CTRL + Z** for Undo
 - **CTRL + Y** for Redo
+
+## 6. Pencil Tool
+
+The Pencil tool allows freehand drawing on the canvas, we implement it using `perfect-freehand` library.
+
+### How It Works
+
+- When the Pencil tool is selected, mouse movements are tracked as a series of points while the user drags on the canvas.
+- These points are converted into a smooth stroke using the `perfect-freehand` library, which generates a natural-looking path.
+- The stroke is rendered using SVG path data and filled on the canvas for a hand-drawn effect.
+
+### Implementation Details
+
+- Each pencil element stores an array of points representing the user's drawing path.
+- The `getSvgPathFromStroke` function converts these points into an SVG path string for rendering.
+- The `drawElement` function detects the `pencil` type and fills the path using the canvas context.
