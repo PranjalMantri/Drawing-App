@@ -61,3 +61,39 @@ To get coords we use the clientX and clientY fields from the event.
 - On mouseDown, the starting position is clientX and clientY and same is the ending position so we create an element using that.
 - On mouseMove, we get the last element, we take its starting position and update the ending position based on user's mouse movements.
 - We create a new element based on the updated coords and overwrite the last element.
+
+## 3 Selection Tool
+
+Before implementing selection functionality we made a couple of changes:
+
+- We now use the useRef hook to get access to the canvas.
+- We updated the createElement function to also return an id for each element.
+- This id is used to update the element, using updateElement function.
+- We introduced a new tool state to keep track of what tool we are using at the moment.
+- If the tool is selection, the action is moving; for a shape, the action is drawing.
+
+### There are 2 steps to implement the selection tool:
+
+1. Actually selecting the element
+2. Moving the element to a new position
+
+### Selecting the element:
+
+- This is done by checking whether the mouse click is inside or very close to the elements.
+- For rectangles, we check if the clicked point lies inside the rectangle or not.
+- For a line segment, we use pointToLineSegmentDistance function to get the distance between the clicked point and the line.
+- If the distance is less than the tolerance (5 pixels) we consider it as selected.
+
+### `pointToLineSegmentDistance()` function:
+
+- This function finds the distance between a point and the closest point to it on a line segment.
+- If the point is parallel (not literally) to the line, then its closest point on the line segment will be perpendicular to it.
+- If the point is before the starting point, its closest point will be the starting point.
+- If the point is beyond the ending point, its closest point will be the ending point.
+
+### Moving the element:
+
+- When moving the element, the height and width remain the same to keep the same shape.
+- The starting position changes based on mouse move.
+- When moving, we get the user's click position.
+- If the user clicks in the middle of the rectangle, then there is some offset between the starting position and user's clicked position. We calculate this offset and use it in updating, else moving the element feels too snappy.
