@@ -32,6 +32,28 @@ function createElement(x1, y1, x2, y2, type, id) {
           ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
         },
       };
+
+    case "diamond":
+      return {
+        elementId,
+        type,
+        x1,
+        y1,
+        x2,
+        y2,
+        draw: (ctx) => {
+          const midX = (x1 + x2) / 2;
+          const midY = (y1 + y2) / 2;
+
+          ctx.beginPath();
+          ctx.moveTo(midX, y1);
+          ctx.lineTo(x2, midY);
+          ctx.lineTo(midX, y2);
+          ctx.lineTo(x1, midY);
+          ctx.closePath();
+          ctx.stroke();
+        },
+      };
     default:
       throw new Error("Unknown element type: " + type);
   }
@@ -88,6 +110,15 @@ function isWithinElement(x, y, element) {
 
       return x >= minX && x <= maxX && y >= minY && y <= maxY;
 
+    case "diamond":
+      const centerX = (x1 + x2) / 2;
+      const centerY = (y1 + y2) / 2;
+      const halfWidth = Math.abs(x2 - x1) / 2;
+      const halfHeight = Math.abs(y2 - y1) / 2;
+
+      const value =
+        Math.abs(x - centerX) / halfWidth + Math.abs(y - centerY) / halfHeight;
+      return value <= 1;
     default:
       return false;
   }
@@ -112,8 +143,8 @@ function adjustElementCoordinates(element) {
       } else {
         return { x1: x2, y1: y2, x2: x1, y2: y1 };
       }
-
     case "rectangle":
+    case "diamond":
       const minX = Math.min(x1, x2);
       const minY = Math.min(y1, y2);
       const maxX = Math.max(x1, x2);
@@ -260,6 +291,14 @@ function App() {
           onChange={() => setTool("rectangle")}
         />
         <label htmlFor="rectangle">Rectangle</label>
+        <input
+          type="radio"
+          name="actionType"
+          value={"diamond"}
+          checked={tool === "diamond"}
+          onChange={() => setTool("diamond")}
+        />
+        <label htmlFor="diamond">Diamond</label>
         <input
           type="radio"
           name="actionType"
