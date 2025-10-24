@@ -1,4 +1,5 @@
 import { useLayoutEffect, useEffect, useRef, useState } from "react";
+import rough from "roughjs/bundled/rough.esm";
 import { createElement } from "./elementFactory";
 import {
   adjustElementCoordinates,
@@ -7,6 +8,29 @@ import {
   resizedCoordinates,
 } from "./elementUtils";
 import useHistory from "./hooks/useHistory";
+
+const drawElement = (roughCanvas, context, element) => {
+  switch (element.type) {
+    case "line":
+    case "rectangle":
+    case "diamond":
+    case "circle":
+      roughCanvas.draw(element.roughElement);
+      break;
+    case "pencil":
+      const stroke = getSvgPathFromStroke(getStroke(element.points));
+      context.fill(new Path2D(stroke));
+      break;
+    case "text":
+      context.textBaseline = "top";
+      context.font = "24px sans-serif";
+      context.fillText(element.text, element.x1, element.y1);
+      break;
+    default:
+      console.log("Invalid type");
+    // throw new Error(`Type not recognised: ${element.type}`);
+  }
+};
 
 function App() {
   const [tool, setTool] = useState("line");
@@ -19,11 +43,12 @@ function App() {
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
+    const roughCanvas = rough.canvas(canvas);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     elements.forEach((element) => {
-      element.draw(ctx);
+      drawElement(roughCanvas, ctx, element);
     });
   }, [elements]);
 
