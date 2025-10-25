@@ -51,7 +51,7 @@ export function positionWithinElement(x, y, element) {
 
       const distance = pointToLineSegmentDistance(x, y, x1, y1, x2, y2);
       return distance < tolerance ? "inside" : null;
-    case "text":
+
     case "rectangle":
       const topLeft = nearPoint(x, y, x1, y1, "tl");
       const topRight = nearPoint(x, y, x2, y1, "tr");
@@ -60,6 +60,7 @@ export function positionWithinElement(x, y, element) {
       const inside = x >= x1 && x <= x2 && y >= y1 && y <= y2 ? "inside" : null;
 
       return topLeft || topRight || bottomLeft || bottomRight || inside;
+
     case "diamond":
       const centerX = (x1 + x2) / 2;
       const centerY = (y1 + y2) / 2;
@@ -169,6 +170,9 @@ export function positionWithinElement(x, y, element) {
       });
 
       return betweenAnyPoint ? "inside" : null;
+
+    case "text":
+      return x >= x1 && x <= x2 && y >= y1 && y <= y2 ? "inside" : null;
     default:
       return false;
   }
