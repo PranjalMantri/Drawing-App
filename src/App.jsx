@@ -49,7 +49,7 @@ function getSvgPathFromStroke(points, closed = true) {
   return result;
 }
 
-const drawElement = (roughCanvas, context, element) => {
+const drawElement = (roughCanvas, context, element, scale) => {
   switch (element.type) {
     case "line":
     case "rectangle":
@@ -65,7 +65,7 @@ const drawElement = (roughCanvas, context, element) => {
       break;
     case "text":
       context.textBaseline = "top";
-      context.font = "24px sans-serif";
+      context.font = `${24 * scale}px sans-serif`;
       context.fillText(element.text, element.x1, element.y1);
       break;
     default:
@@ -79,6 +79,8 @@ function App() {
   const [selectedElement, setSelectedElement] = useState(null);
   const [action, setAction] = useState("none");
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const [scaleOffset, setScaleOffset] = useState({ x: 0, y: 0 });
   const [startPanMousePosition, setStartPanMousePosition] = useState({
     x: 0,
     y: 0,
@@ -93,10 +95,21 @@ function App() {
     const ctx = canvas.getContext("2d");
     const roughCanvas = rough.canvas(canvas);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
+    const scaledWidth = canvas.width * scale;
+    const scaledHeight = canvas.height * scale;
 
-    ctx.translate(panOffset.x, panOffset.y);
+    const scaledOffsetX = (scaledWidth - canvas.width) / 2;
+    const scaledOffsetY = (scaledHeight - canvas.height) / 2;
+    setScaleOffset({ x: scaledOffsetX, y: scaledOffsetY });
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    ctx.translate(
+      panOffset.x * scale - scaledOffsetX,
+      panOffset.y * scale - scaledOffsetY
+    );
+    ctx.scale(scale, scale);
 
     elements.forEach((element) => {
       if (
@@ -105,11 +118,11 @@ function App() {
       )
         return;
 
-      drawElement(roughCanvas, ctx, element);
+      drawElement(roughCanvas, ctx, element, scale);
     });
 
     ctx.restore();
-  }, [elements, action, selectedElement, panOffset]);
+  }, [elements, action, selectedElement, panOffset, scale]);
 
   useEffect(() => {
     if (action === "writing") {
@@ -135,18 +148,27 @@ function App() {
   }, [undo, redo]);
 
   useEffect(() => {
-    const panFunction = (event) => {
-      setPanOffset((prevState) => ({
-        x: prevState.x - event.deltaX,
-        y: prevState.y - event.deltaY,
-      }));
+    const canvas = canvasRef.current;
+
+    const panOrZoomFunction = (event) => {
+      event.preventDefault();
+
+      if (pressedKeys.has("Meta") || pressedKeys.has("Control")) {
+        onZoom(event.deltaY * -0.001);
+      } else {
+        setPanOffset((prevState) => ({
+          x: prevState.x - event.deltaX,
+          y: prevState.y - event.deltaY,
+        }));
+      }
     };
 
-    document.addEventListener("wheel", panFunction);
+    canvas.addEventListener("wheel", panOrZoomFunction, { passive: false });
+
     return () => {
-      document.removeEventListener("wheel", panFunction);
+      canvas.removeEventListener("wheel", panOrZoomFunction);
     };
-  }, []);
+  }, [pressedKeys]);
 
   const updateElement = (id, x1, y1, x2, y2, type, options) => {
     const elementsCopy = [...elements];
@@ -168,10 +190,10 @@ function App() {
         ];
         break;
       case "text":
-        const textWidth = canvasRef.current
-          .getContext("2d")
-          .measureText(options.text).width;
-        const textHeight = 24;
+        const context = canvasRef.current.getContext("2d");
+        context.font = `${24 * scale}px sans-serif`;
+        const textWidth = context.measureText(options.text).width;
+        const textHeight = 24 * scale;
         elementsCopy[oldElementId] = {
           ...createElement(x1, y1, x1 + textWidth, y1 + textHeight, type, id),
           text: options.text,
@@ -185,8 +207,10 @@ function App() {
   };
 
   const getMouseCoordinates = (event) => {
-    const clientX = event.clientX - panOffset.x;
-    const clientY = event.clientY - panOffset.y;
+    const clientX =
+      (event.clientX - panOffset.x * scale + scaleOffset.x) / scale;
+    const clientY =
+      (event.clientY - panOffset.y * scale + scaleOffset.y) / scale;
     return { clientX, clientY };
   };
 
@@ -388,13 +412,12 @@ function App() {
     });
   };
 
+  const onZoom = (delta) =>
+    setScale((prev) => Math.min(Math.max(prev + delta, 0, 0.1), 2));
+
   return (
     <div>
-      <div style={{ zIndex: 2 }}>
-        <div style={{ position: "absolute", bottom: "0px", padding: "4px" }}>
-          <button onClick={undo}>Undo</button>
-          <button onClick={redo}>Redo</button>
-        </div>
+      <div style={{ zIndex: 2, position: "relative" }}>
         <input
           type="radio"
           name="actionType"
@@ -452,15 +475,51 @@ function App() {
         />
         <label htmlFor="selection">Selection</label>
       </div>
+      <div
+        style={{
+          position: "fixed",
+          bottom: "16px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 3,
+          padding: "8px 12px",
+          background: "white",
+          borderRadius: "8px",
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+          display: "flex",
+          gap: "10px",
+          alignItems: "center",
+        }}
+      >
+        <button style={{ padding: "4px" }} onClick={() => onZoom(-0.1)}>
+          -
+        </button>
+        <span
+          style={{ padding: "4px", cursor: "pointer" }}
+          onClick={() => setScale(1)}
+        >
+          {new Intl.NumberFormat("en-GB", { style: "percent" }).format(scale)}
+        </span>
+        <button style={{ padding: "4px" }} onClick={() => onZoom(0.1)}>
+          +
+        </button>
+        <button onClick={undo}>Undo</button>
+        <button onClick={redo}>Redo</button>
+      </div>
+
       {action === "writing" ? (
         <textarea
           ref={textAreaRef}
           onBlur={handleBlur}
           style={{
             position: "fixed",
-            top: selectedElement.y1 + 15 + panOffset.y,
-            left: selectedElement.x1 + panOffset.x,
-            font: "24px sans-serif",
+            top:
+              (selectedElement.y1 + 15) * scale +
+              panOffset.y * scale -
+              scaleOffset.y,
+            left:
+              selectedElement.x1 * scale + panOffset.x * scale - scaleOffset.x,
+            font: `${24 * scale}px sans-serif`,
             margin: 0,
             padding: 0,
             border: 0,

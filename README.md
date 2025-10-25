@@ -197,3 +197,32 @@ Panning allows users to move the entire canvas view by dragging or using the mou
   - The `panOffset` state is used throughout the app to adjust mouse coordinates and drawing logic.
   - All drawing operations are wrapped in `ctx.save()` and `ctx.restore()` to ensure panning does not affect other canvas state.
   - Panning works seamlessly with other tools by offsetting all mouse events and rendering logic.
+
+# 9. Zoom
+
+Zoom lets users scale the canvas in and out, making it easier to work on details or view the entire drawing.
+
+## How Zoom Works
+
+- **Zooming In and Out:**
+
+  - The app maintains a `scale` state that controls the zoom level. All drawing operations and mouse coordinates are adjusted based on this scale.
+  - Users can zoom in or out using:
+    - Mouse wheel + Ctrl/Meta key (scroll to zoom)
+    - The + and - buttons in the UI at the bottom of the app
+    - Clicking the percentage label resets zoom to 100%
+
+- **Canvas Rendering:**
+
+  - The canvas context uses `ctx.scale(scale, scale)` to scale all elements.
+  - The offset (`scaleOffset`) ensures the canvas remains centered as it zooms.
+  - All drawing functions use the current scale for correct sizing and positioning.
+
+- **Mouse Coordinates:**
+
+  - Mouse events are transformed so that drawing, selection, and movement work correctly at any zoom level.
+  - The `getMouseCoordinates` function adjusts for both pan and zoom, ensuring accurate interaction.
+
+- **UI Controls:**
+  - The bottom toolbar provides + and - buttons for zooming, a percentage display, and a reset option.
+  - Zoom is limited between 10% and 200% for usability.
