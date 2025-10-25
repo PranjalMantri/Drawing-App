@@ -73,12 +73,13 @@ const drawElement = (roughCanvas, context, element) => {
 };
 
 function App() {
-  const [tool, setTool] = useState("pencil");
+  const [tool, setTool] = useState("text");
   const [elements, setElements, undo, redo] = useHistory([]);
   const [selectedElement, setSelectedElement] = useState(null);
   const [action, setAction] = useState("none");
 
   const canvasRef = useRef(null);
+  const textAreaRef = useRef(null);
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -88,9 +89,23 @@ function App() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     elements.forEach((element) => {
+      if (
+        action === "writing" &&
+        selectedElement.elementId === element.elementId
+      )
+        return;
+
       drawElement(roughCanvas, ctx, element);
     });
-  }, [elements]);
+  }, [elements, action, selectedElement]);
+
+  useEffect(() => {
+    if (action === "writing") {
+      const textArea = textAreaRef.current;
+      setTimeout(() => textArea.focus(), 0);
+      textArea.value = selectedElement.text;
+    }
+  }, [action, selectedElement]);
 
   useEffect(() => {
     const undoRedoFunction = (event) => {
@@ -107,7 +122,7 @@ function App() {
     return () => document.removeEventListener("keydown", undoRedoFunction);
   }, [undo, redo]);
 
-  const updateElement = (id, x1, y1, x2, y2, type) => {
+  const updateElement = (id, x1, y1, x2, y2, type, options) => {
     const elementsCopy = [...elements];
     const oldElementId = elementsCopy.findIndex(
       (element) => element.elementId === id
@@ -126,6 +141,16 @@ function App() {
           { x: x2, y: y2 },
         ];
         break;
+      case "text":
+        const textWidth = canvasRef.current
+          .getContext("2d")
+          .measureText(options.text).width;
+        const textHeight = 24;
+        elementsCopy[oldElementId] = {
+          ...createElement(x1, y1, x1 + textWidth, y1 + textHeight, type, id),
+          text: options.text,
+        };
+        break;
       default:
         throw new Error("Invalid type: ", type);
     }
@@ -134,6 +159,8 @@ function App() {
   };
 
   const handleMouseDown = (event) => {
+    if (action === "writing") return;
+
     const { clientX, clientY } = event;
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -169,7 +196,7 @@ function App() {
 
       setElements((prevElements) => [...prevElements, element]);
       setSelectedElement(element);
-      setAction("drawing");
+      setAction(tool === "text" ? "writing" : "drawing");
     }
   };
 
@@ -220,7 +247,6 @@ function App() {
           y: clientY - selectedElement.yOffsets[index],
         }));
 
-        // selectedElement.points = newPoints;
         const newElement = { ...selectedElement, points: newPoints };
 
         const index = elements.findIndex((element) => element.elementId === id);
@@ -228,13 +254,32 @@ function App() {
         elementsCopy[index] = newElement;
         setElements(elementsCopy, true);
       } else {
+        const {
+          id: elementId,
+          x1,
+          x2,
+          y1,
+          y2,
+          type,
+          offsetX,
+          offsetY,
+        } = selectedElement;
+
         const width = x2 - x1;
         const height = y2 - y1;
+        const newX1 = clientX - offsetX;
+        const newY1 = clientY - offsetY;
+        const options = type === "text" ? { text: selectedElement.text } : {};
 
-        const newX = clientX - offsetX;
-        const newY = clientY - offsetY;
-
-        updateElement(id, newX, newY, newX + width, newY + height, type);
+        updateElement(
+          id,
+          newX1,
+          newY1,
+          newX1 + width,
+          newY1 + height,
+          type,
+          options
+        );
       }
     } else if (action === "resizing") {
       const { elementId, type, position, ...coordinates } = selectedElement;
@@ -245,11 +290,14 @@ function App() {
         coordinates,
         type
       );
+
       updateElement(elementId, x1, y1, x2, y2, type);
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (event) => {
+    const { clientX, clientY } = event;
+
     if (!selectedElement) {
       setAction("none");
       return;
@@ -267,8 +315,36 @@ function App() {
       updateElement(elementId, x1, y1, x2, y2, type);
     }
 
+    if (
+      selectedElement.type === "text" &&
+      selectedElement.x1 === clientX - selectedElement.offsetX &&
+      selectedElement.y1 === clientY - selectedElement.offsetY
+    ) {
+      setAction("writing");
+      // const selectedElementIndex = elements.findIndex(
+      //   (element) => element.elementId === selectedElement.elementId
+      // );
+
+      // const elementsCopy = [...elements];
+      // elementsCopy[selectedElementIndex] = { ...selectedElement, text: "" };
+      // setElements(elementsCopy);
+      return;
+    } else {
+      setSelectedElement(null);
+    }
+
     setAction("none");
+  };
+
+  const handleBlur = (event) => {
+    const { elementId, x1, y1, type } = selectedElement;
+
     setSelectedElement(null);
+    setAction("none");
+
+    updateElement(elementId, x1, y1, null, null, type, {
+      text: event.target.value,
+    });
   };
 
   return (
@@ -321,12 +397,41 @@ function App() {
         <input
           type="radio"
           name="actionType"
+          value={"text"}
+          checked={tool === "text"}
+          onChange={() => setTool("text")}
+        />
+        <label htmlFor="text">Text</label>
+        <input
+          type="radio"
+          name="actionType"
           value={"selection"}
           checked={tool === "selection"}
           onChange={() => setTool("selection")}
         />
         <label htmlFor="selection">Selection</label>
       </div>
+      {action === "writing" ? (
+        <textarea
+          ref={textAreaRef}
+          onBlur={handleBlur}
+          style={{
+            position: "fixed",
+            top: selectedElement.y1 + 15,
+            left: selectedElement.x1,
+            font: "24px sans-serif",
+            margin: 0,
+            padding: 0,
+            border: 0,
+            outline: 0,
+            resize: "auto",
+            overflow: "hidden",
+            whiteSpace: "pre",
+            background: "transparent",
+            zIndex: 2,
+          }}
+        />
+      ) : null}
       <canvas
         ref={canvasRef}
         id="canvas"

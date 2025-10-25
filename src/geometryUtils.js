@@ -51,6 +51,7 @@ export function positionWithinElement(x, y, element) {
 
       const distance = pointToLineSegmentDistance(x, y, x1, y1, x2, y2);
       return distance < tolerance ? "inside" : null;
+    case "text":
     case "rectangle":
       const topLeft = nearPoint(x, y, x1, y1, "tl");
       const topRight = nearPoint(x, y, x2, y1, "tr");

@@ -156,3 +156,22 @@ The Pencil tool allows freehand drawing on the canvas, we implement it using `pe
 - Each pencil element stores an array of points representing the user's drawing path.
 - The `getSvgPathFromStroke` function converts these points into an SVG path string for rendering.
 - The `drawElement` function detects the `pencil` type and fills the path using the canvas context.
+
+# 7. Text Tool
+
+The Text tool allows users to add and edit text directly on the canvas.
+
+### How It Works
+
+- When the Text tool is selected, clicking on the canvas creates a new text element at the clicked position.
+- A textarea appears at that location, allowing the user to type their text.
+- When the textarea loses focus (blur), the entered text is saved and rendered on the canvas.
+
+### Implementation Details
+
+- The `createElement` function in `elementFactory.js` supports a `"text"` type, initializing a text element with coordinates and an empty string.
+- In `App.jsx`, the `drawElement` function detects `"text"` elements and uses the canvas context’s `fillText` method to render the text at the specified position.
+- On mouse down, if the tool is `"text"`, a new text element is created at the mouse position and the app enters `"writing"` mode.
+- A textarea is rendered at the text element’s coordinates for user input.
+- On blur (when the textarea loses focus), the text is saved to the element and the textarea is removed.
+- The `updateElement` function updates the text element’s content and recalculates its width and height based on the entered text.

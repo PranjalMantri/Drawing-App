@@ -87,6 +87,16 @@ export function createElement(x1, y1, x2, y2, type, id) {
 
     case "pencil":
       return { elementId, type, points: [{ x: x1, y: y1 }] };
+    case "text":
+      return {
+        elementId,
+        type,
+        x1,
+        y1,
+        x2,
+        y2,
+        text: "",
+      };
     default:
       throw new Error("Unknown element type: " + type);
   }
