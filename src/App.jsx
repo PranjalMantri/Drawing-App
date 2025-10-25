@@ -252,13 +252,18 @@ function App() {
       } else {
         setAction("resizing");
       }
-    } else {
+    } else if (tool !== "eraser") {
       // we create an element at the initial mouse position
       const element = createElement(x, y, x, y, tool);
 
       setElements((prevElements) => [...prevElements, element]);
       setSelectedElement(element);
       setAction(tool === "text" ? "writing" : "drawing");
+    } else {
+      setAction("erasing");
+
+      const element = getElementAtPosition(x, y, elements);
+      if (!element) return;
     }
   };
 
@@ -364,6 +369,13 @@ function App() {
       );
 
       updateElement(elementId, x1, y1, x2, y2, type);
+    } else if (action === "erasing") {
+      console.log("erasing");
+      const element = getElementAtPosition(x, y, elements);
+      if (!element) return;
+      setElements((prev) =>
+        prev.filter((el) => el.elementId !== element.elementId)
+      );
     }
   };
 
@@ -474,6 +486,14 @@ function App() {
           onChange={() => setTool("selection")}
         />
         <label htmlFor="selection">Selection</label>
+        <input
+          type="radio"
+          name="actionType"
+          value={"eraser"}
+          checked={tool === "eraser"}
+          onChange={() => setTool("eraser")}
+        />
+        <label htmlFor="eraser">Eraser</label>
       </div>
       <div
         style={{
