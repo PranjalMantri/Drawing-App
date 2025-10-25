@@ -175,3 +175,25 @@ The Text tool allows users to add and edit text directly on the canvas.
 - A textarea is rendered at the text element’s coordinates for user input.
 - On blur (when the textarea loses focus), the text is saved to the element and the textarea is removed.
 - The `updateElement` function updates the text element’s content and recalculates its width and height based on the entered text.
+
+# 8. Panning
+
+Panning allows users to move the entire canvas view by dragging or using the mouse wheel or holding the space bar, making it easier to navigate large drawings.
+
+## How Panning Works
+
+- **Mouse Wheel:**
+
+  - The app listens for the `wheel` event on the document. When the user scrolls, the canvas view shifts by updating the `panOffset` state with the wheel's delta values (`event.deltaX`, `event.deltaY`).
+  - This offset is applied to the canvas context using `ctx.translate(panOffset.x, panOffset.y)` so all elements are drawn relative to the current pan position.
+
+- **Mouse Drag:**
+
+  - If the user presses the middle mouse button or holds the spacebar and drags, the app enters `panning` mode.
+  - On mouse down, the starting mouse position is stored (`startPanMousePosition`).
+  - As the mouse moves, the difference between the current and starting position is calculated, and `panOffset` is updated accordingly.
+  - This lets users drag the canvas in any direction for precise control.
+
+  - The `panOffset` state is used throughout the app to adjust mouse coordinates and drawing logic.
+  - All drawing operations are wrapped in `ctx.save()` and `ctx.restore()` to ensure panning does not affect other canvas state.
+  - Panning works seamlessly with other tools by offsetting all mouse events and rendering logic.

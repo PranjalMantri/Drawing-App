@@ -8,6 +8,7 @@ import {
   resizedCoordinates,
 } from "./elementUtils";
 import useHistory from "./hooks/useHistory";
+import usePressedKeys from "./hooks/usePressedKeys";
 import getStroke from "perfect-freehand";
 
 const average = (a, b) => (a + b) / 2;
@@ -77,6 +78,12 @@ function App() {
   const [elements, setElements, undo, redo] = useHistory([]);
   const [selectedElement, setSelectedElement] = useState(null);
   const [action, setAction] = useState("none");
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [startPanMousePosition, setStartPanMousePosition] = useState({
+    x: 0,
+    y: 0,
+  });
+  const pressedKeys = usePressedKeys();
 
   const canvasRef = useRef(null);
   const textAreaRef = useRef(null);
@@ -87,6 +94,9 @@ function App() {
     const roughCanvas = rough.canvas(canvas);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+
+    ctx.translate(panOffset.x, panOffset.y);
 
     elements.forEach((element) => {
       if (
@@ -97,7 +107,9 @@ function App() {
 
       drawElement(roughCanvas, ctx, element);
     });
-  }, [elements, action, selectedElement]);
+
+    ctx.restore();
+  }, [elements, action, selectedElement, panOffset]);
 
   useEffect(() => {
     if (action === "writing") {
@@ -121,6 +133,20 @@ function App() {
     document.addEventListener("keydown", undoRedoFunction);
     return () => document.removeEventListener("keydown", undoRedoFunction);
   }, [undo, redo]);
+
+  useEffect(() => {
+    const panFunction = (event) => {
+      setPanOffset((prevState) => ({
+        x: prevState.x - event.deltaX,
+        y: prevState.y - event.deltaY,
+      }));
+    };
+
+    document.addEventListener("wheel", panFunction);
+    return () => {
+      document.removeEventListener("wheel", panFunction);
+    };
+  }, []);
 
   const updateElement = (id, x1, y1, x2, y2, type, options) => {
     const elementsCopy = [...elements];
@@ -158,15 +184,27 @@ function App() {
     setElements(elementsCopy, true);
   };
 
+  const getMouseCoordinates = (event) => {
+    const clientX = event.clientX - panOffset.x;
+    const clientY = event.clientY - panOffset.y;
+    return { clientX, clientY };
+  };
+
   const handleMouseDown = (event) => {
     if (action === "writing") return;
 
-    const { clientX, clientY } = event;
+    const { clientX, clientY } = getMouseCoordinates(event);
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
 
     const x = clientX - rect.left;
     const y = clientY - rect.top;
+
+    if (event.button === 1 || pressedKeys.has(" ")) {
+      setAction("panning");
+      setStartPanMousePosition({ x: clientX, y: clientY });
+      return;
+    }
 
     if (tool === "selection") {
       const element = getElementAtPosition(x, y, elements);
@@ -201,12 +239,22 @@ function App() {
   };
 
   const handleMouseMove = (event) => {
-    const { clientX, clientY } = event;
+    const { clientX, clientY } = getMouseCoordinates(event);
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
 
     const x = clientX - rect.left;
     const y = clientY - rect.top;
+
+    if (action === "panning") {
+      const deltaX = clientX - startPanMousePosition.x;
+      const deltaY = clientY - startPanMousePosition.y;
+      setPanOffset((prevState) => ({
+        x: prevState.x + deltaX,
+        y: prevState.y + deltaY,
+      }));
+      return;
+    }
 
     if (action === "none") {
       event.target.style.cursor = "default";
@@ -296,7 +344,7 @@ function App() {
   };
 
   const handleMouseUp = (event) => {
-    const { clientX, clientY } = event;
+    const { clientX, clientY } = getMouseCoordinates(event);
 
     if (!selectedElement) {
       setAction("none");
@@ -321,13 +369,6 @@ function App() {
       selectedElement.y1 === clientY - selectedElement.offsetY
     ) {
       setAction("writing");
-      // const selectedElementIndex = elements.findIndex(
-      //   (element) => element.elementId === selectedElement.elementId
-      // );
-
-      // const elementsCopy = [...elements];
-      // elementsCopy[selectedElementIndex] = { ...selectedElement, text: "" };
-      // setElements(elementsCopy);
       return;
     } else {
       setSelectedElement(null);
@@ -349,7 +390,7 @@ function App() {
 
   return (
     <div>
-      <div>
+      <div style={{ zIndex: 2 }}>
         <div style={{ position: "absolute", bottom: "0px", padding: "4px" }}>
           <button onClick={undo}>Undo</button>
           <button onClick={redo}>Redo</button>
@@ -417,8 +458,8 @@ function App() {
           onBlur={handleBlur}
           style={{
             position: "fixed",
-            top: selectedElement.y1 + 15,
-            left: selectedElement.x1,
+            top: selectedElement.y1 + 15 + panOffset.y,
+            left: selectedElement.x1 + panOffset.x,
             font: "24px sans-serif",
             margin: 0,
             padding: 0,
@@ -440,6 +481,7 @@ function App() {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        style={{ position: "absolute", zIndex: 1 }}
       ></canvas>
     </div>
   );
